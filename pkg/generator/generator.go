@@ -16,7 +16,6 @@
  */
 
 package generator
-package cli
 
 import (
 	"errors"
@@ -25,8 +24,6 @@ import (
 	"math/rand"
 	"path"
 	"runtime"
-
-	"github.com/minio/cli"
 )
 
 // Option provides options for data generation.
@@ -177,7 +174,7 @@ func randASCIIBytes(dst []byte, rng *rand.Rand) {
 }
 
 // GetExpRandSize will return an exponential random size from 1 to and including max.
-// Minimum size: 127 bytes, max scale is 256 times smaller than max size.
+// Minimum size default: 127 bytes, max scale is 256 times smaller than max size.
 // Average size will be max_size * 0.179151.
 func GetExpRandSize(rng *rand.Rand, min, max int64) int64 {
 	if max-min < 10 {
@@ -198,8 +195,8 @@ func GetExpRandSize(rng *rand.Rand, min, max int64) int64 {
 		return 1 + int64(math.Pow(2, logSize+logSizeMin))
 	}
 	// For lowest part, do equal distribution
-	if ctx.Bool("obj.randsize-min") {
-        return 1 + min + int64(random*math.Pow(2, logSizeMin+1))
-    }
-    return 1 + int64(math.Pow(2, logSize+logSizeMin))
+	//if logSizeMin {
+	//    return 1 + min + int64(random*math.Pow(2, logSizeMin+1))
+	//}
+	return 1 + int64(math.Pow(2, logSize+logSizeMin))
 }
