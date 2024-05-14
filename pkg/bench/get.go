@@ -64,6 +64,13 @@ func (g *Get) Prepare(ctx context.Context) error {
 			return (fmt.Errorf("bucket %s does not exist and --list-existing has been set", g.Bucket))
 		}
 
+		if ctx.Bool("obj.randsize-max") {
+			g.objects = append(g.objects, generator.GetRandSizeMax(g.CreateObjects*g.Versions)...)
+		}
+		if ctx.Bool("obj.randsize-min") {
+			g.objects = append(g.objects, generator.GetRandSizeMin(g.CreateObjects*g.Versions)...)
+		}
+
 		// list all objects
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()

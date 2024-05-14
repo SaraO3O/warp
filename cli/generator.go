@@ -36,8 +36,12 @@ var genFlags = []cli.Flag{
 		Usage: "Use specific data generator",
 	},
 	cli.BoolFlag{
-		Name:  "obj.randsize",
-		Usage: "Randomize size of objects so they will be up to the specified size",
+		Name:  "obj.randsize-max",
+		Usage: "Randomize size of objects so they will be up to the maximum specified size",
+	},
+	cli.BoolFlag{
+		Name:  "obj.randsize-min",
+		Usage: "Randomize size of objects so they will be up to the minimum specified size",
 	},
 }
 
@@ -51,12 +55,27 @@ func newGenSourceCSV(ctx *cli.Context) func() generator.Source {
 
 	size, err := toSize(ctx.String("obj.size"))
 	fatalIf(probe.NewError(err), "Invalid obj.size specified")
+
+	if ctx.Bool("obj.randsize-max"){
+		g = generator.WithRandomSize()
+	} else if ctx.Bool("obj.randsize-min"){
+		minSize, err := toSize(ctx.String("obj.randsize-min"))
+		fatalIf(probe.NewError(err), "Invalid min obj.size specified")
+		g = generator.WithMinMaxSize(int64(minSize))
+	} else if ctz.Bool("obj.randsize-max") && ctx.Bool("obj.randsize-min") {
+		minSize, err := toSize(ctx.String("obj.randsize-min"))
+        fatalIf(probe.NewError(err), "Invalid min obj.size specified")
+        maxSize, err := toSize(ctx.String("obj.randsize-max"))
+        fatalIf(probe.NewError(err), "Invalid max obj.size specified")
+        g = generator.WithMinMaxSize(int64(minSize), int64(maxSize))
+	}
+
 	src, err := generator.NewFn(g.Apply(),
 		generator.WithCustomPrefix(ctx.String("prefix")),
 		generator.WithPrefixSize(prefixSize),
 		generator.WithSize(int64(size)),
-		generator.WithRandomSize(ctx.Bool("obj.randsize")),
 	)
+
 	fatalIf(probe.NewError(err), "Unable to create data generator")
 	return src
 }
@@ -79,35 +98,43 @@ func newGenSource(ctx *cli.Context, sizeField string) func() generator.Source {
 		fatal(probe.NewError(err), "Invalid -generator parameter")
 		return nil
 	}
+
 	opts := []generator.Option{
 		generator.WithCustomPrefix(ctx.String("prefix")),
 		generator.WithPrefixSize(prefixSize),
 	}
 	tokens := strings.Split(ctx.String(sizeField), ",")
+
 	switch len(tokens) {
-	case 1:
-		size, err := toSize(tokens[0])
-		if err != nil {
-			fatalIf(probe.NewError(err), "Invalid obj.size specified")
-		}
-		opts = append(opts, generator.WithSize(int64(size)))
-	case 2:
-		minSize, err := toSize(tokens[0])
-		if err != nil {
-			fatalIf(probe.NewError(err), "Invalid min obj.size specified")
-		}
-		maxSize, err := toSize(tokens[1])
-		if err != nil {
-			fatalIf(probe.NewError(err), "Invalid max obj.size specified")
-		}
-		opts = append(opts, generator.WithMinMaxSize(int64(minSize), int64(maxSize)))
-	default:
-		fatalIf(probe.NewError(fmt.Errorf("unexpected obj.size specified: %s", ctx.String(sizeField))), "Invalid obj.size parameter")
-	}
-	opts = append([]generator.Option{g.Apply()}, append(opts, generator.WithRandomSize(ctx.Bool("obj.randsize")))...)
-	src, err := generator.NewFn(opts...)
-	fatalIf(probe.NewError(err), "Unable to create data generator")
-	return src
+    case 1:
+        size, err := toSize(tokens[0])
+        if err != nil {
+            fatalIf(probe.NewError(err), "Invalid obj.size specified")
+        }
+        opts = append(opts, generator.WithSize(int64(size)))
+    case 2:
+        minSize, err := toSize(tokens[0])
+        if err != nil {
+            fatalIf(probe.NewError(err), "Invalid min obj.size specified")
+        }
+        maxSize, err := toSize(tokens[1])
+        if err != nil {
+            fatalIf(probe.NewError(err), "Invalid max obj.size specified")
+        }
+        opts = append(opts, generator.WithMinMaxSize(int64(minSize), int64(maxSize)))
+    default:
+        fatalIf(probe.NewError(fmt.Errorf("unexpected obj.size specified: %s", ctx.String(sizeField))), "Invalid obj.size parameter")
+    }
+    if ctx.Bool("obj.randsize-max") {
+        opts = append(opts, generator.WithRandomSizeMax(int64(toSize(tokens[1]).Int64())))
+    }
+    if ctx.Bool("obj.randsize-min") {
+        opts = append(opts, generator.WithRandomSizeMin(int64(toSize(tokens[0]).Int64())))
+    }
+    opts = append([]generator.Option{g.Apply()}, opts...)
+    src, err := generator.NewFn(opts...)
+    fatalIf(probe.NewError(err), "Unable to create data generator")
+    return src
 }
 
 // toSize converts a size indication to bytes.

@@ -16,6 +16,7 @@
  */
 
 package generator
+package cli
 
 import (
 	"errors"
@@ -24,6 +25,8 @@ import (
 	"math/rand"
 	"path"
 	"runtime"
+
+	"github.com/minio/cli"
 )
 
 // Option provides options for data generation.
@@ -195,5 +198,8 @@ func GetExpRandSize(rng *rand.Rand, min, max int64) int64 {
 		return 1 + int64(math.Pow(2, logSize+logSizeMin))
 	}
 	// For lowest part, do equal distribution
-	return 1 + min + int64(random*math.Pow(2, logSizeMin+1))
+	if ctx.Bool("obj.randsize-min") {
+        return 1 + min + int64(random*math.Pow(2, logSizeMin+1))
+    }
+    return 1 + int64(math.Pow(2, logSize+logSizeMin))
 }
